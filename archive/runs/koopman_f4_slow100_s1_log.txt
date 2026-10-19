@@ -1,0 +1,14 @@
+baseline A eigenvalues: [0.988+0.044j 0.988-0.044j 0.982+0.077j 0.982-0.077j]
+it   250 K  H  9  rec   186.4  lat 0.0675  pred   181.8  slow 0.0061  |lambda| [0.994 0.994 0.992 0.992]  angle(deg) [ 1.2 -1.2  4.9 -4.9]  (2s)
+it   500 K  H 16  rec   192.0  lat 0.0611  pred   182.2  slow 0.0046  |lambda| [0.994 0.994 0.998 0.998]  angle(deg) [ 5.4 -5.4  0.3 -0.3]  (4s)
+it   750 K  H 23  rec   184.6  lat 0.0175  pred   172.5  slow 0.0052  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (7s)
+it  1000 K  H 30  rec   180.1  lat 0.0079  pred   167.1  slow 0.0053  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.6 -6.6  0.5 -0.5]  (11s)
+it  1250 K  H 36  rec   177.6  lat 0.0060  pred   165.1  slow 0.0056  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (17s)
+it  1500 K  H 36  rec   176.2  lat 0.0054  pred   162.9  slow 0.0057  |lambda| [1.    1.    0.999 0.999]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (22s)
+it  1750 K  H 36  rec   174.1  lat 0.0037  pred   160.4  slow 0.0057  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (27s)
+it  2000 K  H 36  rec   173.4  lat 0.0030  pred   159.7  slow 0.0058  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (33s)
+it  2250 K  H 36  rec   172.2  lat 0.0024  pred   158.3  slow 0.0058  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (38s)
+it  2500 K  H 36  rec   172.0  lat 0.0016  pred   158.0  slow 0.0055  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (43s)
+it  2750 K  H 36  rec   171.6  lat 0.0024  pred   157.6  slow 0.0062  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (49s)
+it  3000 K  H 36  rec   171.8  lat 0.0021  pred   157.6  slow 0.0057  |lambda| [1. 1. 1. 1.]  angle(deg) [ 6.5 -6.5  0.5 -0.5]  (54s)
+saved runs/koopman_f4_slow100_s1.pt, runs/koopman_snapshots_f4_slow100_s1.npz

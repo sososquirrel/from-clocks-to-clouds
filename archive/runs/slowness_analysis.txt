@@ -1,0 +1,47 @@
+
+d=16, no slowness (reference) (d = 16): reconstruction MSE 0.11e-3 | error @1h 0.12e-3 @6h 0.43e-3
+     0.509 deg/step  |lam| 0.9999     707 steps = 11 h 47  -> hour k=1     (phase fit 1.00)
+     1.009 deg/step  |lam| 1.0000      357 steps = 5 h 57  -> hour k=2     (phase fit 1.00)
+     3.001 deg/step  |lam| 1.0000      120 steps = 1 h 60  -> hour k=6     (phase fit 1.00)
+     3.521 deg/step  |lam| 1.0000      102 steps = 1 h 42  -> hour k=7     (phase fit 0.99)
+    10.806 deg/step  |lam| 0.8932       33 steps = 33 min  -> unassigned   (phase fit 0.37)
+    12.001 deg/step  |lam| 0.9999       30 steps = 30 min  -> minute k=2   (phase fit 1.00)
+    17.999 deg/step  |lam| 0.9999       20 steps = 20 min  -> minute k=3   (phase fit 1.00)
+    23.998 deg/step  |lam| 1.0000       15 steps = 15 min  -> minute k=4   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 1.00
+   best minute-hand eigenfunction (fundamental phase fit): 0.05
+
+d=16, slowness 1000 from the start (d = 16): reconstruction MSE 1.46e-3 | error @1h 2.58e-3 @6h 13.18e-3
+     0.631 deg/step  |lam| 0.9986      571 steps = 9 h 31  -> hour k=1     (phase fit 0.98)
+     1.066 deg/step  |lam| 0.9998      338 steps = 5 h 38  -> hour k=2     (phase fit 1.00)
+     2.272 deg/step  |lam| 0.9980      158 steps = 2 h 38  -> hour k=4     (phase fit 0.85)
+     2.634 deg/step  |lam| 0.9971      137 steps = 2 h 17  -> hour k=5     (phase fit 0.79)
+     6.007 deg/step  |lam| 0.9998       60 steps = 60 min  -> minute k=1   (phase fit 1.00)
+     6.744 deg/step  |lam| 0.9037       53 steps = 53 min  -> unassigned   (phase fit 0.38)
+    12.001 deg/step  |lam| 1.0009       30 steps = 30 min  -> minute k=2   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 0.98
+   best minute-hand eigenfunction (fundamental phase fit): 1.00
+
+d=16, slowness 100 first, then Koopman (d = 16): reconstruction MSE 0.57e-3 | error @1h 1.10e-3 @6h 5.81e-3
+     0.536 deg/step  |lam| 0.9994     672 steps = 11 h 12  -> hour k=1     (phase fit 0.99)
+     1.031 deg/step  |lam| 0.9999      349 steps = 5 h 49  -> hour k=2     (phase fit 1.00)
+     2.593 deg/step  |lam| 0.9916      139 steps = 2 h 19  -> hour k=6     (phase fit 0.63)
+     5.542 deg/step  |lam| 0.9912       65 steps = 1 h 05  -> minute k=1   (phase fit 0.89)
+    12.004 deg/step  |lam| 0.9994       30 steps = 30 min  -> minute k=2   (phase fit 1.00)
+    18.000 deg/step  |lam| 0.9997       20 steps = 20 min  -> minute k=3   (phase fit 1.00)
+    23.999 deg/step  |lam| 1.0003       15 steps = 15 min  -> minute k=4   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 0.99
+   best minute-hand eigenfunction (fundamental phase fit): 0.89
+
+d=4, slowness 1000 from the start (d = 4): reconstruction MSE 5.07e-3 | error @1h 21.28e-3 @6h 33.49e-3
+     0.175 deg/step  |lam| 0.9921    2062 steps = 34 h 22  -> unassigned   (phase fit 0.46)
+     2.460 deg/step  |lam| 0.9774      146 steps = 2 h 26  -> hour k=1     (phase fit 0.53)
+   best hour-hand eigenfunction (fundamental phase fit): 0.53
+   best minute-hand eigenfunction (fundamental phase fit): 0.38
+
+d=4, slowness 100 first, then Koopman (d = 4): reconstruction MSE 5.16e-3 | error @1h 21.89e-3 @6h 31.77e-3
+     1.105 deg/step  |lam| 0.9885      326 steps = 5 h 26  -> hour k=1     (phase fit 0.75)
+   best hour-hand eigenfunction (fundamental phase fit): 0.75
+   best minute-hand eigenfunction (fundamental phase fit): 0.11
+
+wrote report/slowness.png

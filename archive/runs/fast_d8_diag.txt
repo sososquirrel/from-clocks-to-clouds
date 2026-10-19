@@ -1,0 +1,42 @@
+
+d8 base (w125 H36) (d = 8, 32px): reconstruction MSE 8.67e-3 | error @1h 8.96e-3 @6h 9.96e-3
+     0.508 deg/step  |lam| 1.0001     708 steps = 11 h 48  -> hour k=1     (phase fit 1.00)
+     1.018 deg/step  |lam| 1.0003      353 steps = 5 h 53  -> hour k=2     (phase fit 1.00)
+     5.999 deg/step  |lam| 1.0008       60 steps = 1 h 00  -> minute k=1   (phase fit 1.00)
+    11.986 deg/step  |lam| 0.9999       30 steps = 30 min  -> minute k=2   (phase fit 0.99)
+   best hour-hand eigenfunction (fundamental phase fit): 1.00
+   best minute-hand eigenfunction (fundamental phase fit): 1.00
+
+d8 w_lat 50 (d = 8, 32px): reconstruction MSE 0.56e-3 | error @1h 0.69e-3 @6h 3.20e-3
+     0.545 deg/step  |lam| 0.9997     661 steps = 11 h 01  -> hour k=1     (phase fit 0.99)
+     1.025 deg/step  |lam| 1.0002      351 steps = 5 h 51  -> hour k=2     (phase fit 1.00)
+    18.000 deg/step  |lam| 0.9999       20 steps = 20 min  -> minute k=3   (phase fit 1.00)
+    23.997 deg/step  |lam| 0.9996       15 steps = 15 min  -> minute k=4   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 0.99
+   best minute-hand eigenfunction (fundamental phase fit): 0.02
+
+d8 w_lat 250 (d = 8, 32px): reconstruction MSE 7.28e-3 | error @1h 7.34e-3 @6h 7.34e-3
+     0.502 deg/step  |lam| 0.9999     718 steps = 11 h 58  -> hour k=1     (phase fit 1.00)
+     1.001 deg/step  |lam| 1.0000      360 steps = 5 h 60  -> hour k=2     (phase fit 1.00)
+     1.500 deg/step  |lam| 1.0000      240 steps = 3 h 60  -> hour k=3     (phase fit 1.00)
+     2.000 deg/step  |lam| 0.9999      180 steps = 2 h 60  -> hour k=4     (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 1.00
+   best minute-hand eigenfunction (fundamental phase fit): 0.09
+
+d8 6000 it (d = 8, 32px): reconstruction MSE 0.40e-3 | error @1h 0.42e-3 @6h 0.58e-3
+     0.504 deg/step  |lam| 0.9999     714 steps = 11 h 54  -> hour k=1     (phase fit 1.00)
+     1.005 deg/step  |lam| 1.0001      358 steps = 5 h 58  -> hour k=2     (phase fit 1.00)
+    18.000 deg/step  |lam| 0.9999       20 steps = 20 min  -> minute k=3   (phase fit 1.00)
+    24.000 deg/step  |lam| 0.9999       15 steps = 15 min  -> minute k=4   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 1.00
+   best minute-hand eigenfunction (fundamental phase fit): 0.02
+
+d8 H 24 (d = 8, 32px): reconstruction MSE 1.58e-3 | error @1h 1.97e-3 @6h 7.65e-3
+     0.552 deg/step  |lam| 0.9993     653 steps = 10 h 53  -> hour k=1     (phase fit 0.99)
+     1.043 deg/step  |lam| 0.9998      345 steps = 5 h 45  -> hour k=2     (phase fit 1.00)
+    12.020 deg/step  |lam| 0.9991       30 steps = 30 min  -> minute k=2   (phase fit 1.00)
+    17.993 deg/step  |lam| 0.9999       20 steps = 20 min  -> minute k=3   (phase fit 1.00)
+   best hour-hand eigenfunction (fundamental phase fit): 0.99
+   best minute-hand eigenfunction (fundamental phase fit): 0.03
+
+wrote runs/fast_d8_diag.png

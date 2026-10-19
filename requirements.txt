@@ -1,0 +1,7 @@
+# Python 3.11. Install torch separately, matching your machine / cluster CUDA version:
+#   https://pytorch.org/get-started/locally/   (developed with torch 2.14.1)
+numpy>=2.4
+matplotlib>=3.11
+pillow>=12.3
+imageio>=2.38
+imageio-ffmpeg

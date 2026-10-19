@@ -1,0 +1,616 @@
+<title>Minimal Clock Koopman</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column with wide figure rows; five numbered stages of the same model, in order. */
+:root {
+  --bg: #f8f8f6; --surface: #ffffff; --fg: #17191e; --muted: #5d6370; --faint: #9aa0aa;
+  --line: #e2e3e0; --grid: #eeeeeb; --accent: #2f62d6; --accent-soft: #e6edfb;
+  --hour: #b06d12; --minute: #2f62d6; --mixed: #8a3fc7; --bad: #c9472e; --good: #1f8a52; --code-bg: #f0f0ec;
+  --o1: #2f62d6; --o2: #d9711c; --o3: #1f8a52; --o4: #8a3fc7; --o5: #c2306b;
+  --f-display: "Spectral", Georgia, serif; --f-body: "IBM Plex Sans", system-ui, sans-serif; --f-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --dot-l: 52%; --dot-s: 78%;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121418; --surface: #1a1d22; --fg: #e9eaec; --muted: #a2a8b3; --faint: #6b717c; --line: #2b2f36; --grid: #23272d;
+  --accent: #7aa0f2; --accent-soft: #1e2a44; --hour: #e0a24a; --minute: #7aa0f2; --mixed: #b98af0; --bad: #ee8269; --good: #52c487; --code-bg: #1f2228;
+  --o1: #7aa0f2; --o2: #f0a052; --o3: #52c487; --o4: #b98af0; --o5: #f07aa6; --dot-l: 62%; --dot-s: 70%; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121418; --surface: #1a1d22; --fg: #e9eaec; --muted: #a2a8b3; --faint: #6b717c; --line: #2b2f36; --grid: #23272d;
+  --accent: #7aa0f2; --accent-soft: #1e2a44; --hour: #e0a24a; --minute: #7aa0f2; --mixed: #b98af0; --bad: #ee8269; --good: #52c487; --code-bg: #1f2228;
+  --o1: #7aa0f2; --o2: #f0a052; --o3: #52c487; --o4: #b98af0; --o5: #f07aa6; --dot-l: 62%; --dot-s: 70%; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--f-body); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 48px 80px; }
+.col { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--f-display); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0; }
+h1 { font-size: clamp(2rem, 4.5vw, 2.8rem); } h2 { font-size: 1.6rem; } h3 { font-size: 1.12rem; }
+p { margin: 0; }
+.eyebrow { font: 500 0.75rem/1 var(--f-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.1rem; color: var(--muted); }
+header, section { display: grid; gap: 16px; }
+section { padding-block: 40px 8px; border-top: 1px solid var(--line); margin-top: 40px; }
+.mono, code { font-family: var(--f-mono); font-size: 0.9em; }
+pre { background: var(--code-bg); padding: 14px 16px; border-radius: 6px; overflow-x: auto; font: 0.86rem/1.55 var(--f-mono); margin: 0; }
+.label { font-size: 0.86rem; color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-width: 0; }
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.row3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button { font: 500 0.85rem var(--f-body); color: var(--muted); background: transparent; border: 0; padding: 7px 12px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--fg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.play { font: 500 0.85rem var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg); border-radius: 6px; padding: 7px 12px; cursor: pointer; min-width: 78px; }
+.slider { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; min-width: 0; }
+.slider input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 0.86rem; color: var(--muted); cursor: pointer; }
+canvas.sq { width: 100%; aspect-ratio: 1; display: block; max-width: 100%; }
+.cap { font-size: 0.8rem; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.cap b { color: var(--fg); font-weight: 600; }
+.tablewrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+th, td { text-align: left; padding: 8px 11px; border-bottom: 1px solid var(--grid); vertical-align: middle; }
+th { font: 500 0.74rem var(--f-mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+.imgs img, img.clk { background: #fff; border-radius: 4px; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .imgs img, :root:not([data-theme="light"]) img.clk { filter: invert(0.88) hue-rotate(180deg); } }
+:root[data-theme="dark"] .imgs img, :root[data-theme="dark"] img.clk { filter: invert(0.88) hue-rotate(180deg); }
+.pick { display: grid; grid-template-columns: minmax(200px, 1fr) auto auto auto; gap: 18px; align-items: center; }
+.pick figure { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.pick img { width: 160px; height: 160px; max-width: 100%; }
+.pick figcaption { font-size: 0.85rem; color: var(--muted); }
+.big { font: 500 2rem var(--f-mono); }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.pair { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.pair img { width: 100%; aspect-ratio: 1; }
+.pair span { grid-column: 1 / -1; font: 0.75rem var(--f-mono); color: var(--muted); text-align: center; }
+.strip { display: grid; grid-template-columns: 90px repeat(9, minmax(0, 1fr)); gap: 4px; align-items: center; }
+.strip img { width: 100%; max-width: 72px; aspect-ratio: 1; }
+.strip .lab { font: 0.78rem var(--f-mono); color: var(--muted); }
+.film td, .film th { text-align: center; } .film td:first-child, .film th:first-child { text-align: left; white-space: nowrap; }
+.film img { width: 72px; height: 72px; }
+.pcagrid { display: grid; grid-template-columns: 140px repeat(2, minmax(0, 1fr)) 190px; gap: 12px; align-items: start; }
+.rowhead { display: grid; gap: 4px; align-content: center; align-self: center; }
+.rowhead b { font: 600 1.02rem var(--f-display); } .rowhead span { font-size: 0.8rem; color: var(--muted); }
+.dial { grid-row: span 2; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); display: grid; gap: 8px; justify-items: center; text-align: center; }
+.dial canvas { width: 160px; height: 160px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8rem; color: var(--muted); }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 2.5px solid; vertical-align: middle; margin-right: 5px; }
+.modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.mode { display: grid; gap: 10px; }
+.mode .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.mode .turn { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
+.mode .turn img { width: 100%; aspect-ratio: 1; }
+.tag { display: inline-block; font: 500 0.72rem var(--f-mono); padding: 2px 7px; border-radius: 99px; border: 1px solid currentColor; }
+.olegend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 0.82rem; }
+.olegend span { display: inline-flex; gap: 6px; align-items: center; }
+.olegend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+.svgtip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; font-size: 0.8rem; box-shadow: 0 4px 14px rgba(0,0,0,0.12); white-space: nowrap; }
+.chart { position: relative; } .chart svg { width: 100%; height: auto; display: block; }
+.klgrid { display: grid; gap: 4px; }
+.klgrid .r { display: grid; grid-template-columns: 110px repeat(var(--n), minmax(0, 1fr)); gap: 4px; align-items: center; }
+.klgrid .r img { width: 100%; max-width: 72px; aspect-ratio: 1; }
+.klgrid .r span { font: 0.8rem var(--f-mono); color: var(--muted); }
+.klpca { display: grid; grid-template-columns: 110px repeat(4, minmax(0, 1fr)); gap: 8px; align-items: center; }
+.klpca .h { font: 500 0.74rem var(--f-mono); color: var(--muted); text-align: center; }
+.klpca .b { font: 0.85rem var(--f-mono); color: var(--fg); }
+.klpca canvas { width: 100%; aspect-ratio: 1; display: block; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
+.tradeoff { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.tradeoff .card svg { width: 100%; height: auto; display: block; }
+@media (max-width: 860px) { .tradeoff { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.basis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 860px) {
+  .row2, .row3, .modes, .basis { grid-template-columns: minmax(0, 1fr); }
+  .pcagrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .rowhead { grid-column: 1 / -1; } .dial { grid-row: auto; grid-column: 1 / -1; position: static; }
+  .pick { grid-template-columns: 1fr 1fr; } .pick > .ctl { grid-column: 1 / -1; } .arrow { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="wrap">
+<header>
+  <div class="eyebrow">Koopman VAE · one model, five views</div>
+  <h1>Minimal Clock Koopman</h1>
+  <p class="lede col">A clock image is compressed into four numbers, and one 4×4 matrix K moves those numbers forward in time. This page follows that single model from the plain VAE to its Koopman spectrum and modes.</p>
+  <pre>data      64→32 px clock images, hour and minute hands independent, 1 step = 1 minute (minute +6°, hour +0.5°)
+stage 1   VAE, latent d = 4:   loss = reconstruction + KL
+stage 2   + Koopman, K = 4×4 (starts at the identity), 12,000 iterations, horizon up to 36 minutes:
+          loss = reconstruction + KL + 125·‖Kᵏμ₀ − μₖ‖²/Var(μ) + BCE(decode(Kᵏμ₀), xₖ)</pre>
+</header>
+
+<section>
+  <div class="eyebrow">1 · The VAE</div>
+  <h2>Four numbers are enough to draw a clock</h2>
+  <p class="col">Stage 1 only: each image is encoded into 4 numbers and decoded back, with no notion of time. Pick any time.</p>
+  <div class="card pick">
+    <div class="ctl" style="display:grid;gap:10px">
+      <div class="slider"><label class="label" for="ph">Hour</label><input id="ph" type="range" min="0" max="11" value="10"></div>
+      <div class="slider"><label class="label" for="pm">Minutes</label><input id="pm" type="range" min="0" max="11" value="2"></div>
+      <div class="big num" id="ptime"></div><div class="label" id="pmse"></div>
+    </div>
+    <figure><img class="clk" id="px" alt="original clock"><figcaption>original</figcaption></figure>
+    <div class="arrow mono label" aria-hidden="true">→ 4 numbers →</div>
+    <figure><img class="clk" id="pr" alt="reconstruction"><figcaption>VAE reconstruction</figcaption></figure>
+  </div>
+  <div class="gal imgs" id="gal"></div>
+  <p class="col label" id="vaenote"></p>
+  <div class="row2">
+    <div class="stack" style="display:grid;gap:8px">
+      <h3>What each of the 4 numbers does</h3>
+      <p class="label">Slide one latent number from −2.5 to +2.5, keep the other three fixed, decode.</p>
+      <div class="card imgs" id="trav" style="display:grid;gap:6px"></div>
+    </div>
+    <div class="stack" style="display:grid;gap:8px">
+      <h3>KL per dimension</h3>
+      <p class="label">All four numbers carry information (KL well above 0). Each one mixes both hands, so the latent is not yet organised in time.</p>
+      <div class="card chart"><svg id="klbars" viewBox="0 0 520 220" role="img" aria-label="KL and sigma per latent dimension"></svg></div>
+    </div>
+  </div>
+</section>
+
+<section id="kl">
+  <div class="eyebrow">1b · Why a VAE</div>
+  <h2>What the KL term brings</h2>
+  <p class="col">The same d = 4 pipeline trained with different weights β on the KL term (in both stages). β = 0 is a plain autoencoder, β = 1 the standard VAE used everywhere else on this page, larger β a stronger KL. Koopman stage: 6,000 iterations each.</p>
+  <div class="controls"><span class="label">Show the model</span>
+    <div class="seg" role="group" aria-label="Stage"><button data-ks="vae" aria-pressed="true">after the VAE stage</button><button data-ks="koop" aria-pressed="false">after Koopman</button></div></div>
+
+  <h3>Reconstruction</h3>
+  <p class="col label">The same 8 held-out clocks. Top row: the originals. Each row below: decoded from the encoder mean, for one β.</p>
+  <div class="card imgs klgrid" id="klrec"></div>
+
+  <h3>Samples drawn from noise</h3>
+  <p class="col label">12 random latents z ~ N(0, I), decoded. This is what "generate a new clock" means for each model.</p>
+  <div class="card imgs klgrid" id="klgen"></div>
+
+  <h3>The latent space</h3>
+  <div class="controls"><span class="label">Colour by</span>
+    <div class="seg" role="group" aria-label="Colour"><button data-kc="0" aria-pressed="true">hour hand</button><button data-kc="1" aria-pressed="false">minute hand</button></div></div>
+  <p class="col label">600 held-out clocks, PCA of each model's 4-number latent (axes scaled to the same overall size). Left pair: after the VAE stage. Right pair: after Koopman.</p>
+  <div class="klpca" id="klpca"></div>
+
+  <h3>Prediction from one image</h3>
+  <p class="col label">One held-out clock: Kᵗz₀ decoded after 1 h and 6 h, next to the truth.</p>
+  <div class="tablewrap imgs"><table class="film" id="klroll"></table></div>
+
+  <h3>KL against Koopman: the trade-off</h3>
+  <p class="col">The two terms want different latents. The KL pulls codes towards 0 and wants wide blobs; the Koopman loss wants every code exactly on its circle, with a precise phase, so that Kᵗ predicts it. Each panel shows one quantity against β (dots: seeds).</p>
+  <div class="tradeoff" id="tradeoff"></div>
+  <div class="row2">
+    <div class="card" style="display:grid;gap:6px">
+      <h3>What the KL does here</h3>
+      <p class="label">It does not change what Koopman finds: every β learns the same two modes, (1, 0) at 0.5° and (1, 1) at 6.5° per minute. It shapes the latent: without KL the encoder makes tiny blobs and stretches the latent freely, so nearby codes can decode to very different clocks. The KL fixes the scale and makes the decoder smooth around every code, which forgives the small errors Kᵗ accumulates over long rollouts. The effect is a threshold, not a slope: for β ≤ 0.5 the 6-hour error stays near the autoencoder's (about 10 ×10⁻³, with 6–7% of clocks failing completely), while β ≥ 1 cuts it to about 4 ×10⁻³ with no failures (same result on two seeds for β = 0 and β = 1). Too much KL blurs the images. Random samples from N(0, I) are poor for every β: the clocks form a torus, which a Gaussian prior does not match.</p>
+    </div>
+    <div class="card" style="display:grid;gap:6px">
+      <h3>How to choose β in practice</h3>
+      <ol style="margin:0;padding-left:1.2em;display:grid;gap:4px" class="label">
+        <li>Judge β by long-horizon prediction on held-out data, not by reconstruction (reconstruction always prefers β = 0). Here: β = 1 or 2.</li>
+        <li>Sweep β on a log scale with the rest of the recipe fixed.</li>
+        <li>Watch the KL when the Koopman loss switches on: a rise means Koopman is pulling codes away from the prior.</li>
+        <li>Keep the latent loss scale-free (divided by Var(μ)), so the KL's control of the scale does not change the weight of the Koopman term.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">2 · Training</div>
+  <h2>The latent space while the model learns</h2>
+  <p class="col">300 held-out clocks at each saved checkpoint: first the plain VAE, then the Koopman loss switched on. <b>PCA</b> recomputes the principal components at each checkpoint. <b>Final modes</b> applies the α and β recipes of the final model (box below) to the 4 numbers stored at each checkpoint: left panel α(z), right panel β(z)·conj(α(z)), whose angles are the hour and minute hands once training is done. Early on the recipes do not fit yet, so the points are scattered; they fold onto circles as the encoder converges.</p>
+  <div class="card" style="display:grid;gap:10px">
+    <h3>The two coordinates α and β</h3>
+    <p class="col">The model stores each clock as 4 numbers z = (z₁, z₂, z₃, z₄). The trained K has two rotating directions, and reading z along each one gives a point in a plane: two weighted sums of z₁…z₄, one for x and one for y. These two points are α and β.</p>
+    <pre>z ∈ ℝ⁴ : latent code of a clock (encoder mean)        K ∈ ℝ⁴ˣ⁴ : learned Koopman matrix
+
+K = V Λ V⁻¹,   Λ = diag(λ_α, λ̄_α, λ_β, λ̄_β),   λ_α = e^{iω_α}, ω_α = 0.504°,   λ_β = e^{iω_β}, ω_β = 6.503°
+w_α, w_β ∈ ℂ⁴ : rows of V⁻¹ (left eigenvectors)      w_αᵀ K = λ_α w_αᵀ,   w_βᵀ K = λ_β w_βᵀ
+
+α(z) = c_α · w_αᵀ z ∈ ℂ          β(z) = c_β · w_βᵀ z ∈ ℂ
+c_α, c_β ∈ ℂ : fixed constants (one rotation + one scale) so that arg α ≈ θ_h, arg β ≈ θ_h + θ_m, median |·| = 1
+
+Koopman eigenfunctions:   α(K z) = λ_α α(z)   ⇒   α(z_{t+1}) = e^{iω_α} α(z_t)
+                          β(K z) = λ_β β(z)   ⇒   β(z_{t+1}) = e^{iω_β} β(z_t)      (|λ| = 1: radius unchanged)
+
+Hands:   arg α(z) = θ_h,   arg β(z) = θ_h + θ_m   ⇒   θ_m = arg β(z) − arg α(z) = arg( β(z) · conj α(z) )
+Plots:   x = Re α(z), y = Im α(z)   (likewise for β and β · conj α)</pre>
+    <p class="label">Written out with the trained numbers, w = c · (row of V⁻¹), real and imaginary parts:</p>
+    <div class="tablewrap"><table class="num" id="recipes"></table></div>
+    <p class="col label">Read the <b>angle</b> of each point, measured from the x axis, counter-clockwise. The angle of α(z) is the hour-hand angle θ_h. The angle of β(z) is θ_h + θ_m (hour plus minute). Each step of time (one minute), K turns α by 0.504° and β by 6.503°. The minute hand is the difference: θ_m = angle(β) − angle(α), which is the angle of β·conj(α).</p>
+    <p class="col label" id="example"></p>
+  </div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Projection"><button data-tv="pc" aria-pressed="true">PCA</button><button data-tv="modes" aria-pressed="false">Final modes</button></div>
+    <button class="play" id="tplay">▶ Play</button>
+    <div class="slider"><label class="label" for="tslider">Checkpoint</label><input id="tslider" type="range" min="0" value="0"></div>
+    <span class="tag" id="tstage" style="color:var(--accent)"></span><span class="mono num label" id="tit"></span>
+  </div>
+  <div class="row3">
+    <div class="card"><div class="cap"><span id="tcap0"></span></div><canvas class="sq" id="t0" width="460" height="460"></canvas></div>
+    <div class="card"><div class="cap"><span id="tcap1"></span></div><canvas class="sq" id="t1" width="460" height="460"></canvas></div>
+    <div class="card"><div class="cap"><span>eigenvalues of K</span><span>rings: 0.5°, 6°, 6.5°</span></div><canvas class="sq" id="t2" width="460" height="460"></canvas></div>
+  </div>
+  <div class="card"><canvas id="tloss" width="1080" height="140" style="width:100%;height:auto;display:block;cursor:pointer" aria-label="Loss over training"></canvas>
+    <div class="legend"><span><i style="border-color:var(--fg)"></i>VAE loss (reconstruction + KL)</span><span><i style="border-color:var(--accent);border-top-style:dashed"></i>prediction loss</span><span>click to jump</span></div></div>
+</section>
+
+<section>
+  <div class="eyebrow">3 · VAE vs Koopman</div>
+  <h2>The same clock, followed for 6 hours</h2>
+  <p class="col">Each dot is a held-out clock, coloured by one hand. The black dot is one clock, encoded fresh every minute. In the plain VAE latent it wanders. With the Koopman loss it turns around circles at constant speed. With "modes" on, the Koopman row also shows the decomposition Kᵗz₀ = Σ λₖᵗ φₖ vₖ: two links, one per mode, chained tip to tail; the ring marks Kᵗz₀.</p>
+  <div class="controls">
+    <span class="label">Colour by</span>
+    <div class="seg" role="group" aria-label="Colour"><button data-pc="0" aria-pressed="true">hour hand</button><button data-pc="1" aria-pressed="false">minute hand</button></div>
+    <label class="chk"><input type="checkbox" id="epi" checked> show modes</label>
+    <button class="play" id="pplay">▶ Play</button>
+    <div class="slider"><label class="label" for="pslider">Time</label><input id="pslider" type="range" min="0" max="360" value="0"><span class="mono num" id="plab">+0h00</span></div>
+  </div>
+  <div class="pcagrid">
+    <div class="rowhead"><b>VAE only</b><span>stage 1, no Koopman loss</span></div>
+    <div class="card"><div class="cap"><span>PC 1 vs PC 2</span><span id="vv12"></span></div><canvas class="sq" id="v0" width="460" height="460"></canvas></div>
+    <div class="card"><div class="cap"><span>PC 3 vs PC 4</span><span id="vv34"></span></div><canvas class="sq" id="v1" width="460" height="460"></canvas></div>
+    <div class="card dial"><canvas id="dial" width="320" height="320" aria-label="Clock being followed"></canvas><div class="big num" id="dtime" style="font-size:1.4rem"></div><div class="label">the clock being followed</div></div>
+    <div class="rowhead"><b>+ Koopman</b><span>stage 2, same network</span></div>
+    <div class="card"><div class="cap"><span>PC 1 vs PC 2</span><span id="kv12"></span></div><canvas class="sq" id="k0" width="460" height="460"></canvas></div>
+    <div class="card"><div class="cap"><span>PC 3 vs PC 4</span><span id="kv34"></span></div><canvas class="sq" id="k1" width="460" height="460"></canvas></div>
+  </div>
+  <div class="legend"><span><i style="border-color:var(--hour)"></i>α link (0.50°/min)</span><span><i style="border-color:var(--mixed)"></i>β link (6.50°/min)</span><span>dashed: Kᵗz₀ over 6 h</span></div>
+  <h3>Predicting the future from one image</h3>
+  <p class="col label">Encode one image, apply the operator k times, decode, compare with the true clock k minutes later (200 held-out clocks). Baseline: the best linear map A fitted by least squares on the plain VAE latent.</p>
+  <div class="card chart" id="errchart"></div>
+  <div class="tablewrap imgs"><table class="film" id="film"></table></div>
+</section>
+
+<section>
+  <div class="eyebrow">4 · Spectrum</div>
+  <h2>Two rotations, nothing else</h2>
+  <p class="col">K has four eigenvalues: two conjugate pairs, both on the unit circle (|λ| = 1, nothing decays). Each pair is a rotation of a 2-D plane of the latent, at a fixed angle per minute.</p>
+  <div class="row2">
+    <div class="card chart" id="spec"></div>
+    <div style="display:grid;gap:12px;align-content:start">
+      <div class="tablewrap"><table class="num" id="spectable"></table></div>
+      <div class="controls"><label class="chk"><input type="checkbox" id="showA"> also show the VAE linear fit A (eigenvalues inside the circle: predictions fade)</label></div>
+    </div>
+  </div>
+  <div class="basis">
+    <div class="card" style="display:grid;gap:8px">
+      <h3>What the model learned (α and β, defined in section 2)</h3>
+      <pre id="learned"></pre>
+      <p class="label">(1, 1) means the mode turns with θ_h + θ_m. Both modes rotate at constant speed and together they identify every clock, so reconstruction and prediction are exact.</p>
+    </div>
+    <div class="card" style="display:grid;gap:8px">
+      <h3>The natural hands: one change of basis</h3>
+      <pre id="natural"></pre>
+      <p class="label">The physical frequencies are always in the spectrum. Which basis of them the latent stores is not fixed by the dynamics: here the network chose (hour, hour + minute).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">5 · Modes</div>
+  <h2>The main modes and their orbits</h2>
+  <p class="col">α and β are defined in section 2. For each mode: left, the 2,000 held-out clocks projected onto it (one complex number each: x = real part, y = imaginary part), coloured by the angle it tracks. Right, five clocks encoded once and then pushed forward by K only: each orbit goes round the circle at the mode's speed. Below, what turning that mode does to the image.</p>
+  <div class="controls">
+    <button class="play" id="mplay">❚❚ Pause</button>
+    <div class="slider"><label class="label" for="mslider">Time</label><input id="mslider" type="range" min="0" max="360" value="0"><span class="mono num" id="mlab">+0h00</span></div>
+  </div>
+  <div class="olegend" id="olegend"></div>
+  <div class="modes" id="modes"></div>
+  <video src="media/modes.mp4" controls loop muted playsinline preload="metadata" style="width:100%;border-radius:8px;border:1px solid var(--line);background:#fff"></video>
+  <p class="col label">Video: the four ways of turning the latent, side by side (α only, β only, α and β together, and time).</p>
+</section>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById("data").textContent);
+const TAU = Math.PI * 2, A = D.ang;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const hue = a => `hsl(${((a / TAU) % 1 * 360).toFixed(1)} ${css("--dot-s")} ${css("--dot-l")})`;
+const fmtT = (th, tm) => { let h = Math.floor(th / TAU * 12) % 12 || 12; let m = Math.round(tm / TAU * 60) % 60; return `${h}:${String(m).padStart(2, "0")}`; };
+const plusT = s => `+${Math.floor(s / 60)}h${String(s % 60).padStart(2, "0")}`;
+const dur = n => { const m = Math.round(n); return m >= 60 ? `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}` : `${m} min`; };
+const NS = "http://www.w3.org/2000/svg";
+const el = (tag, at, parent) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); parent && parent.appendChild(e); return e; };
+const txt = (svg, x, y, s, o = {}) => { const e = el("text", { x, y, "font-size": 11, fill: css("--muted"), "font-family": "IBM Plex Mono, monospace", ...o }, svg); e.textContent = s; return e; };
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+function drawClock(ctx, size, th, tm, ring) {
+  const c = size / 2, R = size * 0.42; ctx.clearRect(0, 0, size, size);
+  if (ring) for (let i = 0; i < 120; i++) { const a0 = i / 120 * TAU; ctx.beginPath(); ctx.strokeStyle = hue(a0); ctx.lineWidth = size * 0.035; ctx.arc(c, c, R + size * 0.05, a0 - Math.PI / 2, a0 + TAU / 115 - Math.PI / 2); ctx.stroke(); }
+  ctx.strokeStyle = css("--fg"); ctx.lineCap = "round"; ctx.lineWidth = size * 0.025; ctx.beginPath(); ctx.arc(c, c, R, 0, TAU); ctx.stroke();
+  for (let k = 0; k < 12; k++) { const a = k / 12 * TAU, r0 = k % 3 ? 0.84 : 0.76; ctx.lineWidth = size * (k % 3 ? 0.012 : 0.02);
+    ctx.beginPath(); ctx.moveTo(c + Math.sin(a) * R * r0, c - Math.cos(a) * R * r0); ctx.lineTo(c + Math.sin(a) * R * 0.93, c - Math.cos(a) * R * 0.93); ctx.stroke(); }
+  const hand = (a, len, w) => { ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(c - Math.sin(a) * R * 0.1, c + Math.cos(a) * R * 0.1); ctx.lineTo(c + Math.sin(a) * R * len, c - Math.cos(a) * R * len); ctx.stroke(); };
+  hand(th, 0.52, size * 0.05); hand(tm, 0.86, size * 0.022);
+}
+function axes(ctx, W, lab) {
+  if (!lab) return;
+  ctx.fillStyle = css("--muted"); ctx.font = `${Math.round(W / 24)}px IBM Plex Mono, monospace`;
+  ctx.textAlign = "right"; ctx.textBaseline = "bottom"; ctx.fillText(`x: ${lab[0]} →`, W - 6, W / 2 - 4);
+  ctx.save(); ctx.translate(W / 2 + 6, 6); ctx.rotate(Math.PI / 2); ctx.textAlign = "left"; ctx.textBaseline = "bottom"; ctx.fillText(`← y: ${lab[1]}`, 0, 0); ctx.restore();
+}
+function scatter(cv, pts, lim, colOf, alpha = 0.8, r = 3, lab = null) {
+  const ctx = cv.getContext("2d"), W = cv.width; ctx.clearRect(0, 0, W, W);
+  ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, W); ctx.moveTo(0, W / 2); ctx.lineTo(W, W / 2); ctx.stroke();
+  ctx.globalAlpha = alpha;
+  pts.forEach((p, i) => { ctx.fillStyle = colOf(i); ctx.beginPath(); ctx.arc(W / 2 + p[0] / lim * W / 2, W / 2 - p[1] / lim * W / 2, r, 0, TAU); ctx.fill(); });
+  ctx.globalAlpha = 1; axes(ctx, W, lab); return ctx;
+}
+const toPx = (cv, lim, p) => [cv.width / 2 + p[0] / lim * cv.width / 2, cv.width / 2 - p[1] / lim * cv.width / 2];
+
+// ===================================================== 1. VAE
+const V = D.vae;
+{ const h = document.getElementById("ph"), m = document.getElementById("pm");
+  const pick = () => { const p = V.picker[+h.value * 12 + +m.value];
+    document.getElementById("px").src = p.x; document.getElementById("pr").src = p.r;
+    document.getElementById("ptime").textContent = `${+h.value || 12}:${String(+m.value * 5).padStart(2, "0")}`;
+    document.getElementById("pmse").textContent = `pixel error ${p.mse.toFixed(2)}×10⁻³`; };
+  h.addEventListener("input", pick); m.addEventListener("input", pick); pick();
+  document.getElementById("gal").innerHTML = V.gallery.map(g => `<div class="pair"><img src="${g.x}" alt="original ${g.t}"><img src="${g.r}" alt="reconstruction ${g.t}"><span>${g.t}</span></div>`).join("");
+  document.getElementById("vaenote").textContent = `Each pair: original, reconstruction. Over 2,000 unseen clocks the typical pixel error is ${V.err_median.toFixed(2)}×10⁻³ (95% below ${V.err_p95.toFixed(2)}×10⁻³); drawing the average clock every time would score ${V.blank.toFixed(1)}×10⁻³.`;
+  document.getElementById("trav").innerHTML = V.trav.map((row, j) => `<div class="strip"><span class="lab">z${j + 1}</span>${row.map(s => `<img src="${s}" alt="">`).join("")}</div>`).join("") +
+    `<div class="strip"><span class="lab"></span>${V.trav_steps.map(v => `<span class="lab" style="text-align:center">${v > 0 ? "+" : ""}${v.toFixed(1)}</span>`).join("")}</div>`;
+}
+function klBars() {
+  const svg = document.getElementById("klbars"); svg.innerHTML = "";
+  const W = 520, H = 220, pl = 40, pt = 16, pb = 28, bw = (W - pl - 40) / 4, kmax = 3.5;
+  const sy = v => H - pb - v / kmax * (H - pt - pb), sy2 = v => H - pb - v * (H - pt - pb);
+  [0, 1, 2, 3].forEach(v => { el("line", { x1: pl, x2: W - 40, y1: sy(v), y2: sy(v), stroke: css("--grid") }, svg); txt(svg, pl - 6, sy(v) + 4, v, { "text-anchor": "end" }); });
+  [0, 0.5, 1].forEach(v => txt(svg, W - 34, sy2(v) + 4, `σ ${v}`)); txt(svg, pl, pt - 4, "KL (nats)");
+  V.kl.forEach((k, j) => { const x = pl + j * bw;
+    el("rect", { x: x + 14, y: sy(k), width: bw - 28, height: sy(0) - sy(k), rx: 4, fill: css("--accent") }, svg);
+    txt(svg, x + bw / 2, sy(k) - 6, k.toFixed(2), { "text-anchor": "middle", fill: css("--fg") });
+    el("circle", { cx: x + bw / 2, cy: sy2(V.sigma[j]), r: 5, fill: css("--fg"), stroke: css("--surface"), "stroke-width": 2 }, svg);
+    txt(svg, x + bw / 2, H - pb + 16, `z${j + 1}`, { "text-anchor": "middle" }); });
+}
+
+{ const R = D.recipes, f = v => (v >= 0 ? "+" : "−") + Math.abs(v).toFixed(2), sum = w => w.map((v, i) => `${f(v)}·z${["₁", "₂", "₃", "₄"][i]}`).join(" ");
+  document.getElementById("recipes").innerHTML = `<thead><tr><th></th><th>x (real part)</th><th>y (imaginary part)</th><th>angle tracks</th><th>K turns it by</th></tr></thead><tbody>` +
+    `<tr><td><b>α(z)</b></td><td class="mono">${sum(R.alpha.x)}</td><td class="mono">${sum(R.alpha.y)}</td><td>θ_h (hour)</td><td class="mono">${R.alpha.deg.toFixed(3)}° / min</td></tr>` +
+    `<tr><td><b>β(z)</b></td><td class="mono">${sum(R.beta.x)}</td><td class="mono">${sum(R.beta.y)}</td><td>θ_h + θ_m</td><td class="mono">${R.beta.deg.toFixed(3)}° / min</td></tr></tbody>`;
+  const E = D.example;
+  document.getElementById("example").innerHTML = `Example: a clock showing ${E.t} (hour hand at ${E.th.toFixed(0)}°, minute hand at ${E.tm.toFixed(0)}°) is stored as z = (${E.z.map(v => v.toFixed(2)).join(", ")}). ` +
+    `α(z) = (${E.alpha.x.toFixed(2)}, ${E.alpha.y.toFixed(2)}), angle ${E.alpha.angle.toFixed(0)}° ≈ θ_h. ` +
+    `β(z) = (${E.beta.x.toFixed(2)}, ${E.beta.y.toFixed(2)}), angle ${E.beta.angle.toFixed(0)}° ≈ θ_h + θ_m = ${(E.th + E.tm).toFixed(0)}°.`; }
+
+// ===================================================== 1b. KL study
+let klStage = "vae", klCol = 0;
+const klName = b => b === 0 ? "β = 0 (AE)" : b === 1 ? "β = 1 (VAE)" : `β = ${b}`;
+function klStudy() {
+  const KS = D.kl_study; if (!KS) { document.getElementById("kl").hidden = true; return; }
+  const R = KS.runs;
+  const st = r => klStage === "vae" ? r.vae : r.koop;
+  const grid = (id, imgs, n) => { const g = document.getElementById(id); g.style.setProperty("--n", n); g.innerHTML = imgs; };
+  grid("klrec", `<div class="r"><span>original</span>${KS.orig_imgs.map(s => `<img src="${s}" alt="">`).join("")}</div>` +
+    R.map(r => `<div class="r"><span>${klName(r.beta)}</span>${st(r).rec_imgs.map(s => `<img src="${s}" alt="">`).join("")}</div>`).join(""), 8);
+  grid("klgen", R.map(r => `<div class="r"><span>${klName(r.beta)}</span>${st(r).gen_imgs.map(s => `<img src="${s}" alt="">`).join("")}</div>`).join(""), 12);
+  const pbox = document.getElementById("klpca");
+  if (!pbox.dataset.built) {
+    pbox.innerHTML = `<span></span><span class="h">VAE · PC1 vs PC2</span><span class="h">VAE · PC3 vs PC4</span><span class="h">Koopman · PC1 vs PC2</span><span class="h">Koopman · PC3 vs PC4</span>` +
+      R.map((r, i) => `<span class="b">${klName(r.beta)}</span>` + [0, 1, 2, 3].map(k => `<canvas id="klp${i}_${k}" width="260" height="260"></canvas>`).join("")).join("");
+    pbox.dataset.built = 1;
+  }
+  R.forEach((r, i) => [[r.vae.pca, 0], [r.vae.pca, 2], [r.seeds[0].pca, 0], [r.seeds[0].pca, 2]].forEach(([pc, o], k) =>
+    scatter(document.getElementById(`klp${i}_${k}`), pc.map(p => [p[o], p[o + 1]]), 2.6, j => hue(KS.pca_ang[j][klCol]), 0.8, 2.4)));
+  document.getElementById("klroll").innerHTML = `<thead><tr><th></th><th>start</th><th>Kᵗz₀ +1 h</th><th>truth +1 h</th><th>Kᵗz₀ +6 h</th><th>truth +6 h</th></tr></thead><tbody>` +
+    R.map(r => { const g = r.seeds[0].roll; return `<tr><td>${klName(r.beta)}</td><td><img src="${g[0]}" alt=""></td><td><img src="${g[1]}" alt=""></td><td><img src="${g[3]}" alt=""></td><td><img src="${g[2]}" alt=""></td><td><img src="${g[4]}" alt=""></td></tr>`; }).join("") + `</tbody>`;
+  const tbox = document.getElementById("tradeoff"); tbox.innerHTML = "";
+  const panels = [["reconstruction error ×10⁻³ (after Koopman)", r => [r.koop.rec]], ["6 h prediction error ×10⁻³", r => r.koop.err_6h_seeds],
+                  ["latent one-step error under K", r => [r.koop.lin_K]], ["KL rise when Koopman switches on (nats)", r => [r.koop.kl - r.vae.kl]]];
+  panels.forEach(([title, f]) => {
+    const card = document.createElement("div"); card.className = "card"; tbox.appendChild(card);
+    const W = 260, H = 190, pl = 40, pr = 10, pt = 26, pb = 30, n = R.length;
+    const vals = R.flatMap(f), lo = Math.min(0, ...vals), hi = Math.max(...vals) * 1.15;
+    const sx = i => pl + (i + 0.5) / n * (W - pl - pr), sy = v => H - pb - (v - lo) / (hi - lo) * (H - pt - pb);
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": title }, card);
+    txt(svg, 4, 14, title, { fill: css("--fg"), "font-family": "IBM Plex Sans, sans-serif", "font-size": 11 });
+    [lo, (lo + hi) / 2, hi].forEach(v => { el("line", { x1: pl, x2: W - pr, y1: sy(v), y2: sy(v), stroke: css("--grid") }, svg);
+      txt(svg, pl - 4, sy(v) + 4, hi < 0.1 ? v.toFixed(3) : v.toFixed(1), { "text-anchor": "end", "font-size": 9.5 }); });
+    const means = R.map(r => { const a = f(r); return a.reduce((s, x) => s + x, 0) / a.length; });
+    el("path", { d: means.map((v, i) => (i ? "L" : "M") + sx(i) + "," + sy(v)).join(""), fill: "none", stroke: css("--accent"), "stroke-width": 2 }, svg);
+    R.forEach((r, i) => { f(r).forEach(v => el("circle", { cx: sx(i), cy: sy(v), r: 4, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 1.5 }, svg));
+      txt(svg, sx(i), H - pb + 14, String(r.beta), { "text-anchor": "middle", "font-size": 10 }); });
+    txt(svg, W - pr, H - 4, "β", { "text-anchor": "end", "font-size": 10 });
+  });
+}
+document.querySelectorAll("[data-ks]").forEach(b => b.addEventListener("click", () => { klStage = b.dataset.ks;
+  document.querySelectorAll("[data-ks]").forEach(x => x.setAttribute("aria-pressed", x === b)); klStudy(); }));
+document.querySelectorAll("[data-kc]").forEach(b => b.addEventListener("click", () => { klCol = +b.dataset.kc;
+  document.querySelectorAll("[data-kc]").forEach(x => x.setAttribute("aria-pressed", x === b)); klStudy(); }));
+
+// ===================================================== 2. training timeline (loaded from timeline.json)
+let TL = null, tI = 0, tView = "pc", tTimer = null;
+const tS = document.getElementById("tslider");
+fetch("timeline.json").then(r => r.json()).then(d => { TL = d; tS.max = d.frames.length - 1; tDraw(); })
+  .catch(() => { document.getElementById("tit").textContent = "could not load the training timeline"; });
+function tDraw() {
+  if (!TL) return;
+  const f = TL.frames[tI], lim = tView === "pc" ? 2.8 : 1.9, ang = TL.idx.map(j => A[j]);
+  const flat = tView === "pc" ? f.pc : f.modes;
+  [0, 1].forEach(k => {
+    const cv = document.getElementById("t" + k), pts = ang.map((_, i) => [flat[i * 4 + 2 * k] / 100, flat[i * 4 + 2 * k + 1] / 100]);
+    const lab = tView === "pc" ? [`PC ${2 * k + 1}`, `PC ${2 * k + 2}`] : (k ? ["Re β·conj(α)", "Im β·conj(α)"] : ["Re α", "Im α"]);
+    const ctx = scatter(cv, pts, lim, i => hue(ang[i][k]), 0.85, 3.5, lab);
+    if (tView === "modes") { ctx.strokeStyle = css("--faint"); ctx.beginPath(); ctx.arc(cv.width / 2, cv.width / 2, cv.width / 2 / lim, 0, TAU); ctx.stroke(); }
+  });
+  document.getElementById("tcap0").textContent = tView === "pc" ? "PC 1 vs PC 2 · colour = hour angle" : "α(z) · angle = hour hand · colour = hour angle";
+  document.getElementById("tcap1").textContent = tView === "pc" ? "PC 3 vs PC 4 · colour = minute angle" : "β(z)·conj(α(z)) · angle = minute hand · colour = minute angle";
+  // eigenvalues
+  const cv = document.getElementById("t2"), ctx = cv.getContext("2d"), W = cv.width; ctx.clearRect(0, 0, W, W);
+  const x0 = 0.6, x1 = 1.1, sx = v => (v - x0) / (x1 - x0) * W, sy = v => W / 2 - v / (x1 - x0) * W;
+  ctx.strokeStyle = css("--faint"); ctx.lineWidth = 1.5; ctx.beginPath();
+  for (let i = 0; i <= 100; i++) { const a = -0.26 + 0.52 * i / 100; i ? ctx.lineTo(sx(Math.cos(a)), sy(Math.sin(a))) : ctx.moveTo(sx(Math.cos(a)), sy(Math.sin(a))); } ctx.stroke();
+  [[0.5, "--hour"], [6, "--minute"], [6.5, "--mixed"]].forEach(([d, c]) => [1, -1].forEach(s => { const a = d * Math.PI / 180 * s;
+    ctx.strokeStyle = css(c); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(sx(Math.cos(a)), sy(Math.sin(a)), 11, 0, TAU); ctx.stroke(); }));
+  if (f.eig) f.eig.forEach(([re, im]) => { ctx.fillStyle = css("--fg"); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(sx(re), sy(im), 7, 0, TAU); ctx.fill(); ctx.stroke(); });
+  else { ctx.fillStyle = css("--muted"); ctx.font = "22px IBM Plex Sans, sans-serif"; ctx.textAlign = "center"; ctx.fillText("no K yet: stage 1 is a plain VAE", W / 2, W * 0.85); }
+  document.getElementById("tstage").textContent = f.stage === "vae" ? "stage 1 · VAE" : "stage 2 · + Koopman";
+  document.getElementById("tit").textContent = `iteration ${f.it.toLocaleString("en-US")}` + (f.loss != null ? ` · VAE loss ${f.loss.toFixed(1)}` : "") + (f.pred != null ? ` · prediction ${f.pred.toFixed(1)}` : "");
+  tLoss(); tS.value = tI;
+}
+function tLoss() {
+  const cv = document.getElementById("tloss"), ctx = cv.getContext("2d"), W = cv.width, H = cv.height, p = 10, F = TL.frames;
+  ctx.clearRect(0, 0, W, H);
+  const vals = F.flatMap(f => [f.loss, f.pred]).filter(v => v != null), lo = Math.min(...vals), hi = Math.min(Math.max(...vals), lo * 2.5);
+  const nV = F.filter(f => f.stage === "vae").length, sx = i => p + i / (F.length - 1) * (W - 2 * p), sy = v => H - p - (Math.min(v, hi) - lo) / (hi - lo) * (H - 2 * p - 14);
+  ctx.fillStyle = css("--accent-soft"); ctx.fillRect(sx(nV - 0.5), 0, W, H);
+  ctx.fillStyle = css("--muted"); ctx.font = "13px IBM Plex Sans, sans-serif"; ctx.fillText("stage 1: VAE", p + 4, 14); ctx.fillText("stage 2: + Koopman", sx(nV) + 6, 14);
+  const line = (k, col, dash) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash(dash); ctx.beginPath(); let on = false;
+    F.forEach((f, i) => { if (f[k] == null) { on = false; return; } on ? ctx.lineTo(sx(i), sy(f[k])) : ctx.moveTo(sx(i), sy(f[k])); on = true; }); ctx.stroke(); ctx.setLineDash([]); };
+  line("loss", css("--fg"), []); line("pred", css("--accent"), [6, 4]);
+  ctx.strokeStyle = css("--accent"); ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx(tI), 0); ctx.lineTo(sx(tI), H); ctx.stroke();
+}
+tS.addEventListener("input", () => { tI = +tS.value; tDraw(); });
+document.getElementById("tloss").addEventListener("click", ev => { if (!TL) return; const r = ev.currentTarget.getBoundingClientRect();
+  tI = Math.max(0, Math.min(TL.frames.length - 1, Math.round((ev.clientX - r.left) / r.width * (TL.frames.length - 1)))); tDraw(); });
+document.querySelectorAll("[data-tv]").forEach(b => b.addEventListener("click", () => { tView = b.dataset.tv;
+  document.querySelectorAll("[data-tv]").forEach(x => x.setAttribute("aria-pressed", x === b)); tDraw(); }));
+document.getElementById("tplay").addEventListener("click", e => { const b = e.currentTarget;
+  if (tTimer) { clearInterval(tTimer); tTimer = null; b.textContent = "▶ Play"; return; }
+  if (!TL) return; if (tI >= TL.frames.length - 1) tI = 0; b.textContent = "❚❚ Pause";
+  tTimer = setInterval(() => { tI++; tDraw(); if (tI >= TL.frames.length - 1) { clearInterval(tTimer); tTimer = null; b.textContent = "▶ Play"; } }, 110); });
+
+// ===================================================== 3. PCA + trajectory
+const PC = D.pca;
+let pT = 0, pCol = 0, pTimer = null;
+const pPanels = [["v0", PC.vae, 0], ["v1", PC.vae, 2], ["k0", PC.koop, 0], ["k1", PC.koop, 2]].map(([id, blk, o]) => {
+  const pts = blk.pc.map(p => [p[o], p[o + 1]]), probe = blk.probe.map(p => [p[o], p[o + 1]]);
+  let m = 0; pts.concat(probe).forEach(([x, y]) => { m = Math.max(m, Math.abs(x), Math.abs(y)); });
+  return { cv: document.getElementById(id), pts, probe, lim: m * 1.08, epi: blk.epi ? [o, o + 1] : null, blk, lab: [`PC ${o + 1}`, `PC ${o + 2}`] };
+});
+[["vv12", PC.vae, 0], ["vv34", PC.vae, 2], ["kv12", PC.koop, 0], ["kv34", PC.koop, 2]].forEach(([id, b, o]) =>
+  document.getElementById(id).textContent = `${((b.var[o] + b.var[o + 1]) * 100).toFixed(0)}% var`);
+function pDraw() {
+  pPanels.forEach(P => {
+    const ctx = scatter(P.cv, P.pts, P.lim, i => hue(A[i][pCol]), 0.75, 3, P.lab);
+    if (P.epi && document.getElementById("epi").checked) {
+      const ep = P.blk.epi, [a, b] = P.epi, i = Math.min(ep.roll_pc.length - 1, Math.floor(pT / 2)), W = P.cv.width;
+      ctx.fillStyle = css("--surface"); ctx.globalAlpha = 0.55; ctx.fillRect(0, 0, W, W); ctx.globalAlpha = 1;
+      ctx.setLineDash([5, 5]); ctx.strokeStyle = css("--muted"); ctx.lineWidth = 1.3; ctx.beginPath();
+      ep.roll_pc.forEach((p, k) => { const [x, y] = toPx(P.cv, P.lim, [p[a], p[b]]); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]);
+      let base = [ep.origin[a], ep.origin[b]];
+      ep.modes.forEach(md => { const col = css(md.hand ? "--mixed" : "--hour"), tip = [base[0] + md.pc[i][a], base[1] + md.pc[i][b]];
+        ctx.strokeStyle = col; ctx.globalAlpha = 0.35; ctx.lineWidth = 1.2; ctx.beginPath();
+        md.ell.forEach((p, k) => { const [x, y] = toPx(P.cv, P.lim, [base[0] + p[a], base[1] + p[b]]); k ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); ctx.globalAlpha = 1;
+        const [x0, y0] = toPx(P.cv, P.lim, base), [x1, y1] = toPx(P.cv, P.lim, tip);
+        ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); base = tip; });
+      const [ex, ey] = toPx(P.cv, P.lim, base); ctx.strokeStyle = css("--fg"); ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(ex, ey, 11, 0, TAU); ctx.stroke();
+    }
+    ctx.strokeStyle = css("--fg"); ctx.lineWidth = 2; ctx.globalAlpha = 0.5; ctx.beginPath();
+    for (let s = Math.max(0, pT - 60); s <= pT; s++) { const [x, y] = toPx(P.cv, P.lim, P.probe[s]); s === Math.max(0, pT - 60) ? ctx.moveTo(x, y) : ctx.lineTo(x, y); }
+    ctx.stroke(); ctx.globalAlpha = 1;
+    const [x, y] = toPx(P.cv, P.lim, P.probe[pT]); ctx.fillStyle = css("--fg"); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(x, y, 8, 0, TAU); ctx.fill(); ctx.stroke();
+  });
+  drawClock(document.getElementById("dial").getContext("2d"), 320, PC.probe_th[pT], PC.probe_tm[pT], true);
+  document.getElementById("dtime").textContent = fmtT(PC.probe_th[pT], PC.probe_tm[pT]);
+  document.getElementById("plab").textContent = plusT(pT); document.getElementById("pslider").value = pT;
+}
+document.getElementById("pslider").addEventListener("input", e => { pT = +e.target.value; pDraw(); });
+document.getElementById("epi").addEventListener("change", pDraw);
+document.querySelectorAll("[data-pc]").forEach(b => b.addEventListener("click", () => { pCol = +b.dataset.pc;
+  document.querySelectorAll("[data-pc]").forEach(x => x.setAttribute("aria-pressed", x === b)); pDraw(); }));
+document.getElementById("pplay").addEventListener("click", e => { const b = e.currentTarget;
+  if (pTimer) { clearInterval(pTimer); pTimer = null; b.textContent = "▶ Play"; return; }
+  if (pT >= 360) pT = 0; b.textContent = "❚❚ Pause";
+  pTimer = setInterval(() => { pT = Math.min(360, pT + 1); pDraw(); if (pT >= 360) { clearInterval(pTimer); pTimer = null; b.textContent = "▶ Play"; } }, 40); });
+function errChart() {
+  const box = document.getElementById("errchart"); box.innerHTML = "";
+  const E = D.err, W = 960, H = 280, pl = 52, pr = 150, pt = 16, pb = 34, n = 360, ymax = 40;
+  const sx = s => pl + s / n * (W - pl - pr), sy = v => H - pb - Math.min(v, ymax) / ymax * (H - pt - pb);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Pixel error versus prediction horizon" }, box);
+  [0, 10, 20, 30, 40].forEach(v => { el("line", { x1: pl, x2: W - pr, y1: sy(v), y2: sy(v), stroke: css("--grid") }, svg); txt(svg, pl - 8, sy(v) + 4, v, { "text-anchor": "end" }); });
+  [0, 60, 120, 180, 240, 300, 360].forEach(s => txt(svg, sx(s), H - pb + 18, `${s / 60}h`, { "text-anchor": "middle" }));
+  txt(svg, pl, pt - 4, "pixel MSE ×10⁻³");
+  el("line", { x1: pl, x2: W - pr, y1: sy(E.blank), y2: sy(E.blank), stroke: css("--faint"), "stroke-dasharray": "5 5" }, svg);
+  const S = [["koop", "Koopman VAE (K)", css("--accent"), ""], ["vae", "VAE + linear fit A", css("--bad"), "7 4"]];
+  S.forEach(([k, _, c, d]) => el("path", { d: E[k].map((v, i) => (i ? "L" : "M") + sx(i).toFixed(1) + "," + sy(v).toFixed(1)).join(""), fill: "none", stroke: c, "stroke-width": 2, "stroke-dasharray": d }, svg));
+  const lab = [[E.koop[n], "Koopman VAE"], [E.vae[n], "VAE + linear fit A"], [E.blank, "average clock"]].map(([v, s]) => ({ y: sy(v), s })).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < lab.length; i++) if (lab[i].y - lab[i - 1].y < 15) lab[i].y = lab[i - 1].y + 15;
+  lab.forEach(l => txt(svg, W - pr + 8, l.y + 4, l.s, { fill: css("--fg"), "font-family": "IBM Plex Sans, sans-serif", "font-size": 12 }));
+  const tip = document.createElement("div"); tip.className = "svgtip"; tip.hidden = true; box.appendChild(tip);
+  const cross = el("line", { y1: pt, y2: H - pb, stroke: css("--faint"), visibility: "hidden" }, svg);
+  const hit = el("rect", { x: pl, y: pt, width: W - pl - pr, height: H - pt - pb, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", ev => { const r = svg.getBoundingClientRect(), k = W / r.width, s = Math.max(0, Math.min(n, Math.round(((ev.clientX - r.left) * k - pl) / (W - pl - pr) * n)));
+    cross.setAttribute("x1", sx(s)); cross.setAttribute("x2", sx(s)); cross.setAttribute("visibility", "visible");
+    tip.hidden = false; tip.innerHTML = `<b class="mono">${plusT(s)}</b><br>Koopman: <span class="mono">${E.koop[s].toFixed(2)}</span><br>VAE + A: <span class="mono">${E.vae[s].toFixed(2)}</span>`;
+    const px = sx(s) / k; tip.style.left = (px > r.width * 0.55 ? px - tip.offsetWidth - 10 : px + 10) + "px"; tip.style.top = "30px"; });
+  hit.addEventListener("mouseleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); });
+  const F = D.film;
+  document.getElementById("film").innerHTML = `<thead><tr><th>from one image</th>${F.steps.map(s => `<th class="mono">${plusT(s)}</th>`).join("")}</tr></thead><tbody>` +
+    [["truth", "ground truth"], ["koop", "Koopman VAE"], ["vae", "VAE + linear fit A"]].map(([k, n]) => `<tr><td>${n}</td>${F[k].map(s => `<td><img src="${s}" alt=""></td>`).join("")}</tr>`).join("") + `</tbody>`;
+}
+
+// ===================================================== 4. spectrum
+const SP = D.spec;
+function specChart() {
+  const box = document.getElementById("spec"); box.innerHTML = "";
+  const W = 520, H = 420, pad = 40, x0 = 0.7, x1 = 1.08, y0 = -0.19, y1 = 0.19;
+  const sx = v => pad + (v - x0) / (x1 - x0) * (W - 2 * pad), sy = v => H - pad - (v - y0) / (y1 - y0) * (H - 2 * pad);
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "Eigenvalues of K" }, box);
+  [0.8, 0.9, 1.0].forEach(v => { el("line", { x1: sx(v), x2: sx(v), y1: pad, y2: H - pad, stroke: css("--grid") }, svg); txt(svg, sx(v), H - pad + 16, v.toFixed(1), { "text-anchor": "middle" }); });
+  [-0.1, 0, 0.1].forEach(v => { el("line", { x1: pad, x2: W - pad, y1: sy(v), y2: sy(v), stroke: css("--grid") }, svg); txt(svg, pad - 6, sy(v) + 4, v.toFixed(1), { "text-anchor": "end" }); });
+  txt(svg, W - pad, H - 8, "Re λ", { "text-anchor": "end" }); txt(svg, pad, pad - 10, "Im λ");
+  let d = ""; for (let i = 0; i <= 200; i++) { const a = -0.2 + 0.4 * i / 200; d += (i ? "L" : "M") + sx(Math.cos(a)) + "," + sy(Math.sin(a)); }
+  el("path", { d, fill: "none", stroke: css("--faint"), "stroke-width": 1.5 }, svg);
+  txt(svg, sx(Math.cos(0.17)) + 6, sy(Math.sin(0.17)), "unit circle |λ| = 1");
+  if (document.getElementById("showA").checked) D.spec_A.forEach(e => el("circle", { cx: sx(e.re), cy: sy(e.im), r: 6, fill: "none", stroke: css("--bad"), "stroke-width": 2 }, svg));
+  SP.forEach(e => { const col = css(e.q ? "--mixed" : "--hour");
+    el("circle", { cx: sx(e.re), cy: sy(e.im), r: 8, fill: col, stroke: css("--surface"), "stroke-width": 2 }, svg);
+    if (e.deg > 0) txt(svg, sx(e.re) - 12, sy(e.im) - 12, `(${e.p},${e.q}) ${e.deg.toFixed(2)}°`, { "text-anchor": "end", fill: col, "font-size": 12 }); });
+  if (document.getElementById("showA").checked) txt(svg, pad + 4, H - pad - 8, "red rings: VAE + linear fit A", { fill: css("--bad") });
+}
+{ const pos = SP.filter(e => e.deg > 0).sort((a, b) => a.deg - b.deg);
+  document.getElementById("spectable").innerHTML = `<thead><tr><th>eigenvalue</th><th>angle / min</th><th>one loop</th><th>|λ|</th><th>mode (p, q)</th><th>fit</th></tr></thead><tbody>` +
+    pos.map(e => `<tr><td class="mono">e^{±i·${e.deg.toFixed(3)}°}</td><td class="mono">${e.deg.toFixed(3)}°</td><td class="mono">${(360 / e.deg).toFixed(1)} min = ${dur(360 / e.deg)}</td><td class="mono">${e.abs.toFixed(4)}</td><td class="mono">(${e.p}, ${e.q})</td><td class="mono">${e.fit.toFixed(2)}</td></tr>`).join("") + `</tbody>`;
+  const [a, b] = pos;
+  document.getElementById("learned").textContent = `α = phase of mode (${a.p},${a.q})   turns ${a.deg.toFixed(3)}°/min   → θ_h\nβ = phase of mode (${b.p},${b.q})   turns ${b.deg.toFixed(3)}°/min   → θ_h + θ_m`;
+  document.getElementById("natural").textContent = `θ_h = α           ${a.deg.toFixed(3)}°/min  one loop ${dur(360 / a.deg)}   (true 0.5°, 12 h)\nθ_m = β − α       ${(b.deg - a.deg).toFixed(3)}°/min  one loop ${dur(360 / (b.deg - a.deg))}    (true 6°, 1 h)`;
+}
+document.getElementById("showA").addEventListener("change", specChart);
+
+// ===================================================== 5. modes
+let mT = 0, mTimer = null;
+const OC = ["--o1", "--o2", "--o3", "--o4", "--o5"];
+document.getElementById("olegend").innerHTML = D.orbit_starts.map((t, q) => `<span><i style="background:var(${OC[q]})"></i><span class="mono">clock ${q + 1} · starts ${t}</span></span>`).join("");
+const colName = ["hour angle θ_h", "minute angle θ_m", "θ_h + θ_m"];
+document.getElementById("modes").innerHTML = D.modes.map((m, k) => `
+  <div class="card mode">
+    <div class="cap" style="margin:0"><span><b style="font-size:1rem">${m.name}</b></span><span class="mono">${m.deg.toFixed(3)}°/min · one loop ${dur(m.loop)}</span></div>
+    <p class="label">${m.note}. Colour = ${colName[m.hand]} (fit ${m.fit.toFixed(2)}).</p>
+    <div class="two"><canvas class="sq" id="mp${k}" width="360" height="360"></canvas><canvas class="sq" id="mo${k}" width="360" height="360"></canvas></div>
+    <div class="label">turn this mode by 0°, 45°, …, 360° and decode:</div>
+    <div class="turn imgs">${m.turn.map(s => `<img src="${s}" alt="">`).join("")}</div>
+  </div>`).join("");
+const MLAB = { alpha: ["Re α", "Im α"], beta: ["Re β", "Im β"], hour: ["Re α", "Im α"], minute: ["Re β·conj(α)", "Im β·conj(α)"] };
+function mDraw() {
+  D.modes.forEach((m, k) => {
+    scatter(document.getElementById("mp" + k), m.pts, 1.9, i => hue(A[i][m.hand]), 0.7, 2.2, MLAB[m.key]);
+    const cv = document.getElementById("mo" + k), ctx = cv.getContext("2d"), W = cv.width, lim = 1.9;
+    ctx.clearRect(0, 0, W, W);
+    ctx.strokeStyle = css("--grid"); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(W / 2, 0); ctx.lineTo(W / 2, W); ctx.moveTo(0, W / 2); ctx.lineTo(W, W / 2); ctx.stroke();
+    axes(ctx, W, MLAB[m.key]);
+    ctx.strokeStyle = css("--faint"); ctx.lineWidth = 1.2; ctx.beginPath();
+    m.orbits.forEach(o => o.forEach((p, i) => { const [x, y] = toPx(cv, lim, p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); })); ctx.stroke();
+    const idx = Math.min(m.orbits[0].length - 1, Math.floor(mT / 2)), tail = Math.max(2, Math.min(60, Math.ceil(90 / (Math.abs(m.deg) * 2))));
+    m.orbits.forEach((o, q) => { const col = css(OC[q]);
+      for (let s = Math.max(1, idx - tail + 1); s <= idx; s++) { const [xa, ya] = toPx(cv, lim, o[s - 1]), [xb, yb] = toPx(cv, lim, o[s]);
+        ctx.strokeStyle = col; ctx.lineWidth = 3.5; ctx.globalAlpha = 0.15 + 0.85 * (1 - (idx - s) / tail); ctx.beginPath(); ctx.moveTo(xa, ya); ctx.lineTo(xb, yb); ctx.stroke(); }
+      ctx.globalAlpha = 1; const [x, y] = toPx(cv, lim, o[idx]); ctx.fillStyle = col; ctx.strokeStyle = css("--surface"); ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, TAU); ctx.fill(); ctx.stroke(); });
+  });
+  document.getElementById("mlab").textContent = plusT(mT); document.getElementById("mslider").value = mT;
+}
+document.getElementById("mslider").addEventListener("input", e => { mT = +e.target.value; mDraw(); });
+const mBtn = document.getElementById("mplay");
+const mStart = () => { mTimer = setInterval(() => { mT = (mT + 1) % 361; mDraw(); }, 50); mBtn.textContent = "❚❚ Pause"; };
+mBtn.addEventListener("click", () => { if (mTimer) { clearInterval(mTimer); mTimer = null; mBtn.textContent = "▶ Play"; } else mStart(); });
+if (!reduced) mStart(); else mBtn.textContent = "▶ Play";
+
+function render() { klBars(); klStudy(); tDraw(); pDraw(); errChart(); specChart(); mDraw(); }
+render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
+new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+</script>

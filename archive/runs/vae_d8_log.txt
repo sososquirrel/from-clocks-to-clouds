@@ -1,0 +1,11 @@
+epoch   1/10  recon   366.78  kl  20.59  (88s)
+epoch   2/10  recon   336.00  kl  21.21  (181s)
+epoch   3/10  recon   328.63  kl  20.68  (281s)
+epoch   4/10  recon   325.47  kl  20.18  (379s)
+epoch   5/10  recon   325.29  kl  20.10  (481s)
+epoch   6/10  recon   322.90  kl  19.75  (583s)
+epoch   7/10  recon   321.34  kl  19.94  (686s)
+epoch   8/10  recon   321.08  kl  19.87  (790s)
+epoch   9/10  recon   320.75  kl  19.81  (894s)
+epoch  10/10  recon   319.86  kl  19.81  (995s)
+saved runs/vae_d8.pt, runs/vae_snapshots_d8.npz
